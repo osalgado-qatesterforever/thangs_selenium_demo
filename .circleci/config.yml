@@ -71,3 +71,9 @@ workflows:
     # - deploy:
     #     requires:
     #       - test-python
+  mointor:
+    jobs:
+      - run-chrome-testing
+    # - deploy:
+    #     requires:
+    #       - test-python
