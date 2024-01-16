@@ -56,7 +56,7 @@ jobs:
           command:  |
             REPORT="https://output.circle-artifacts.com/output/job/${CIRCLE_WORKFLOW_JOB_ID}/artifacts/${CIRCLE_NODE_INDEX}/test-results/html/report.html"
 
-            xvfb-run -a pytest --junitxml=test-results/junit/report.xml --html=test-results/html/report.html -rPxs src/tests/* --report-url=$REPORT
+            xvfb-run -a pytest --junitxml=test-results/junit/report.xml --html=test-results/html/report.html -rPxs src/tests/*
 
       - store_test_results:
           path: test-results/junit
