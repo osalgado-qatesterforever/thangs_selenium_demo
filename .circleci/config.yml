@@ -4,31 +4,70 @@ version: 2.1
 orbs:
   python: circleci/python@2
 jobs:
-  test-python:
-    # Install dependencies and run tests
+  run-chrome-testing:
     docker:
-      - image: cimg/python:3.8-node
+      - image: cimg/python:3.9-node
+        auth:
+          username: ${DOCKER_HUB_ID}
+          password: ${DOCKER_HUB_PWD}
+      - image: selenium/standalone-chrome:120.0
+        auth:
+          username: ${DOCKER_HUB_ID}
+          password: ${DOCKER_HUB_PWD}
+        environment:
+          shm-size: 2g
     steps:
       - checkout
-      - python/install-packages
+      - setup_remote_docker
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "requirements.txt" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: Setup virtual environment
+          command: |
+            python3 -m venv venv
+            source venv/bin/activate
+
+      - run:
+          name: Install dependencies
+          command: |
+            pip install -r requirements.txt
+
+      - save_cache:
+          paths:
+            - venv
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
+
+      - run :
+          name: Install xvfb (required to trigger tests)
+          command: |
+            sudo apt update
+            sudo apt install -y xvfb
+
+      - run:
+          name: Wait for Selenium
+          command: dockerize -wait tcp://localhost:4444 -timeout 1m
+
       - run:
           name: Run tests
-          command: pytest --junitxml=junit.xml || ((($? == 5)) && echo 'Did not find any tests to run.')
+          command:  |
+            REPORT="https://output.circle-artifacts.com/output/job/${CIRCLE_WORKFLOW_JOB_ID}/artifacts/${CIRCLE_NODE_INDEX}/test-results/html/report.html"
+
+            xvfb-run -a pytest --junitxml=test-results/junit/report.xml --html=test-results/html/report.html -rPxs src/tests/* --report-url=$REPORT
+
       - store_test_results:
-          path: junit.xml
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
-    steps:
-      # Replace this with steps to deploy to users
-      - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          path: test-results/junit
+
+      - store_artifacts:
+          path: test-results
+
 workflows:
   build-and-test:
     jobs:
-      - test-python
+      - run-chrome-testing
     # - deploy:
     #     requires:
     #       - test-python
